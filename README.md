@@ -1,16 +1,42 @@
-# chithi
+# 📱 Chithi - Real-time Chat App
 
-A new Flutter project.
+**Chithi** is a real-time messaging application built with **Flutter** and powered by **Socket.IO** for fast, event-based communication. It supports one-on-one and group chat functionality.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Features
 
-A few resources to get you started if this is your first Flutter project:
+- 🔐 User Sign In (to be implemented)
+- 💬 One-on-One Chat
+- 👥 Group Chat (via socket rooms)
+- 🔌 Real-time messaging with Socket.IO
+- 📱 Beautiful Flutter UI
+- ✅ Message status indicators (to be implemented)
+- 📦 Modular architecture for scalability
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📦 Tech Stack
+
+- **Flutter** (Frontend UI)
+- **Socket.IO** (WebSocket communication)
+- **Dart** (Client logic)
+- **Node.js/Express (Server)** – assumed as backend for sockets (not included here)
+
+---
+
+## 🧰 Requirements
+
+- Flutter SDK ≥ 3.0.0
+- A working Socket.IO backend server
+- Dart ≥ 2.17.0
+
+---
+
+## 🔧 Installation
+
+```bash
+git clone https://github.com/yourusername/chithi.git
+cd chithi
+flutter pub get
+flutter run
