@@ -1,39 +1,44 @@
 import 'package:flutter/foundation.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
-  late IO.Socket socket;
+  late io.Socket socket;
   String? mySocketId;
 
-  void connect() {
-    print('Connecting.........');
-    socket = IO.io(
-      'https://0d82-43-251-86-49.ngrok-free.app/',
-      IO.OptionBuilder()
+  void connect({required String userId}) {
+    debugPrint('Connecting.........');
+    socket = io.io(
+      'https://18a1-43-251-86-49.ngrok-free.app/',
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .enableReconnection()
           .build(),
     );
 
+    // Only emit after connected
     socket.connect();
 
     socket.onConnect((_) {
-      if (kDebugMode) print('Connected to server');
+      debugPrint('Connected to server: $userId');
+
+      // Emit custom user ID after successful connection
+      socket.emit('set-user-id', userId);
     });
 
     socket.onDisconnect((_) {
-      if (kDebugMode) print('Disconnected');
+      debugPrint('Disconnected');
     });
 
     socket.onConnectError((err) {
-      if (kDebugMode) print('Connect error: $err');
+      debugPrint('Connect error: $err');
     });
 
-    socket.on('user_id', (data) {
+    socket.on('socket_id', (data) {
       mySocketId = data;
-      if (kDebugMode) print("My Socket ID: $mySocketId");
+      debugPrint("My Socket ID: $mySocketId");
     });
   }
+
 
   void joinRoom(String roomId) {
     socket.emit('join-room', roomId);
@@ -44,14 +49,18 @@ class SocketService {
   }
 
   void sendGroupMessage(String roomId, String name, String message) {
-    socket.emit('group-message', {"roomId": roomId, "name": name, "message": message});
+    socket.emit('group-message', {
+      "roomId": roomId,
+      "name": name,
+      "message": message,
+    });
   }
 
-  void sendPrivateMessage(String toSocketId, String name, String message) {
+  void sendPrivateMessage(String toUserId, String name, String message) {
     socket.emit('private-message', {
-      "toSocketId": toSocketId,
+      "toUserId": toUserId,
       "name": name,
-      "message": message
+      "message": message,
     });
   }
 }

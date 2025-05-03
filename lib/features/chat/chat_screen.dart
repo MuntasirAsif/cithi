@@ -8,6 +8,7 @@ class ChatScreen extends StatefulWidget {
   final String name;
   final String? roomId;
   final String? targetSocketId;
+  final SocketService socketService;
 
   const ChatScreen({
     super.key,
@@ -15,16 +16,14 @@ class ChatScreen extends StatefulWidget {
     required this.name,
     this.roomId,
     this.targetSocketId,
+    required this.socketService,
   });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-// keep your imports and enums...
-
 class _ChatScreenState extends State<ChatScreen> {
-  final _socketService = SocketService();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _messages = <Map<String, String>>[];
@@ -32,7 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ChatMode _chatMode;
   late final String _name;
   late String _roomId;
-  late String _targetSocketId;
+  late String _targetUserId;
 
   @override
   void initState() {
@@ -41,29 +40,38 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatMode = widget.mode;
     _name = widget.name;
     _roomId = widget.roomId ?? 'group-room-1';
-    _targetSocketId = widget.targetSocketId ?? '';
+    _targetUserId = widget.targetSocketId ?? '';
 
-    _socketService.connect();
+    if (_chatMode == ChatMode.group) {
+      widget.socketService.joinRoom(_roomId);
+    }
 
-    _socketService.socket.on('receiveData', (data) {
-      _addMessage(data['name'], data['message']);
+    widget.socketService.socket.on('receiveData', (data) {
+      if (data != null) {
+        _addMessage(data['name'] ?? 'Unknown', data['message'] ?? '');
+      }
     });
 
-    _socketService.socket.on('receive-group-message', (data) {
-      _addMessage(data['name'], data['message']);
+    widget.socketService.socket.on('receive-group-message', (data) {
+      if (data != null) {
+        _addMessage(data['name'] ?? 'Unknown', data['message'] ?? '');
+      }
     });
 
-    _socketService.socket.on('receive-private-message', (data) {
-      _addMessage(data['name'], data['message']);
+    widget.socketService.socket.on('receive-private-message', (data) {
+      if (data != null) {
+        _addMessage(data['name'] ?? 'Unknown', data['message'] ?? '');
+      }
     });
   }
 
   void _addMessage(String sender, String text) {
+    if (!mounted) return;
+
     setState(() {
       _messages.add({'sender': sender, 'text': text});
     });
 
-    // Auto scroll to latest message
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -79,29 +87,41 @@ class _ChatScreenState extends State<ChatScreen> {
     final msg = _controller.text.trim();
     if (msg.isEmpty) return;
 
-
     switch (_chatMode) {
       case ChatMode.global:
-        _socketService.sendGlobalMessage(_name, msg);
+        widget.socketService.sendGlobalMessage(_name, msg);
         break;
       case ChatMode.group:
-        _socketService.joinRoom(_roomId);
-        _socketService.sendGroupMessage(_roomId, _name, msg);
+        widget.socketService.sendGroupMessage(_roomId, _name, msg);
         break;
       case ChatMode.private:
-        if (_targetSocketId.isNotEmpty) {
-          _socketService.sendPrivateMessage(_targetSocketId, _name, msg);
+        if (_targetUserId.isNotEmpty) {
+          widget.socketService.sendPrivateMessage(_targetUserId, _name, msg);
         } else {
-          _addMessage("⚠️ System", "No target socket ID provided.");
+          _addMessage("⚠️ System", "No target user ID provided.");
+          return;
         }
         break;
     }
 
     _controller.clear();
+    _addMessage(_name, msg); // Show own message immediately
+  }
+
+  @override
+  void dispose() {
+    widget.socketService.socket.off('receiveData');
+    widget.socketService.socket.off('receive-group-message');
+    widget.socketService.socket.off('receive-private-message');
+
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isConnected = widget.socketService.socket.connected;
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -113,7 +133,11 @@ class _ChatScreenState extends State<ChatScreen> {
           if (_chatMode == ChatMode.group)
             _chatInfo('Group Room ID', _roomId),
           if (_chatMode == ChatMode.private)
-            _chatInfo('Private Chat with', _targetSocketId),
+            _chatInfo('Private Chat with User ID', _targetUserId),
+          if (widget.socketService.mySocketId != null)
+            _chatInfo('My Socket ID', widget.socketService.mySocketId!),
+          if (widget.socketService.mySocketId != null)
+            _chatInfo('Is connected', isConnected.toString()),
           const Divider(height: 1),
           Expanded(
             child: ListView.builder(
@@ -122,6 +146,7 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (_, index) {
                 final msg = _messages[index];
                 final isMe = msg['sender'] == _name;
+
                 return Align(
                   alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
@@ -139,16 +164,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       ],
                     ),
                     child: Column(
-                      crossAxisAlignment:
-                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
                         if (!isMe)
-                          Text(msg['sender']!,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: Colors.black54)),
-                        Text(msg['text']!, style: const TextStyle(fontSize: 15)),
+                          Text(
+                            msg['sender']!,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        Text(
+                          msg['text']!,
+                          style: const TextStyle(fontSize: 15),
+                        ),
                       ],
                     ),
                   ),
@@ -168,7 +200,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: 'Type message...',
                       fillColor: Colors.grey[200],
                       filled: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                         borderSide: BorderSide.none,
@@ -201,4 +234,3 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-
