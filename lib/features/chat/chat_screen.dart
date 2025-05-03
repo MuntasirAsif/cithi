@@ -105,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     _controller.clear();
-    _addMessage(_name, msg); // Show own message immediately
+    ChatMode.private == widget.mode?_addMessage(_name, msg): print('not private mode'); // Show own message immediately
   }
 
   @override
@@ -128,99 +128,107 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Text('Chithi - ${_chatMode.name.toUpperCase()} Chat'),
         backgroundColor: Colors.indigo,
       ),
-      body: Column(
-        children: [
-          if (_chatMode == ChatMode.group)
-            _chatInfo('Group Room ID', _roomId),
-          if (_chatMode == ChatMode.private)
-            _chatInfo('Private Chat with User ID', _targetUserId),
-          if (widget.socketService.mySocketId != null)
-            _chatInfo('My Socket ID', widget.socketService.mySocketId!),
-          if (widget.socketService.mySocketId != null)
-            _chatInfo('Is connected', isConnected.toString()),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _messages.length,
-              itemBuilder: (_, index) {
-                final msg = _messages[index];
-                final isMe = msg['sender'] == _name;
-
-                return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isMe ? Colors.indigo[100] : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          blurRadius: 3,
-                          offset: const Offset(0, 2),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: isMe
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      children: [
-                        if (!isMe)
-                          Text(
-                            msg['sender']!,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_chatMode == ChatMode.group) _chatInfo('Group Room ID', _roomId),
+            if (_chatMode == ChatMode.private)
+              _chatInfo('Private Chat with User ID', _targetUserId),
+            widget.socketService.mySocketId != null
+                ? _chatInfo('My Socket ID', widget.socketService.mySocketId!)
+                : Text('Not connected'),
+            if (widget.socketService.mySocketId != null)
+              _chatInfo('Is connected', isConnected.toString()),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _messages.length,
+                itemBuilder: (_, index) {
+                  final msg = _messages[index];
+                  final isMe = msg['sender'] == _name;
+            
+                  return Align(
+                    alignment:
+                        isMe ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 10,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isMe ? Colors.indigo[100] : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            blurRadius: 3,
+                            offset: const Offset(0, 2),
                           ),
-                        Text(
-                          msg['text']!,
-                          style: const TextStyle(fontSize: 15),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment:
+                            isMe
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                        children: [
+                          if (!isMe)
+                            Text(
+                              msg['sender']!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          Text(
+                            msg['text']!,
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: 'Type message...',
-                      fillColor: Colors.grey[200],
-                      filled: true,
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      decoration: InputDecoration(
+                        hintText: 'Type message...',
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Colors.indigo,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _send,
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    backgroundColor: Colors.indigo,
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
+                      onPressed: _send,
+                    ),
                   ),
-                )
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
