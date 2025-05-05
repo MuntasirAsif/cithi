@@ -1,3 +1,4 @@
+import 'package:cithi/features/chat/call_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart';
 import '../../service/socket_service.dart';
@@ -18,12 +19,47 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String? _mySocketId;
 
   @override
+  @override
   void initState() {
     super.initState();
     print(widget.id);
     socketService.connect(userId: widget.id);
 
-    // Listen for connection and set socket ID
+    socketService.onOffer((data) {
+      final callerId = data['from'];
+      final offer = data['offer'];
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('📞 Incoming Call'),
+          content: Text('Call from user: $callerId'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Decline'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CallScreen(
+                      selfId: socketService.mySocketId!,
+                      targetId: callerId,
+                      incomingOffer: offer, // 👈 Make sure CallScreen handles this
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Accept'),
+            ),
+          ],
+        ),
+      );
+    });
+
     Future.delayed(const Duration(milliseconds: 300), () {
       socketService.socket.onConnect((_) {
         setState(() {
@@ -33,13 +69,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     final TextEditingController _groupController = TextEditingController();
     final TextEditingController _privateIdController = TextEditingController();
+    final TextEditingController _callIdController = TextEditingController();
     return Scaffold(
       appBar: AppBar(title: const Text("Chithi - Chats")),
-      body: SafeArea(
+      body: socketService.mySocketId==null?Center(child: CircularProgressIndicator()):SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(8),
           children: [
@@ -49,13 +87,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   "🔘 Global--",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  "My User ID: ${widget.id}",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+                Column(
+                  children: [
+                    Text(
+                      "My User ID: ${widget.id}",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    SelectableText(
+                      "My Socket ID: ${socketService.mySocketId!}",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -147,6 +197,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 }
               },
               child: const Text("Start Private Chat"),
+            ),
+            const Divider(),
+            const Text(
+              "Video Call",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: TextField(
+                controller: _callIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Target Soket ID',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final targetId = _callIdController.text.trim();
+                final myId = socketService.mySocketId;
+
+                if (targetId.isEmpty || myId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Waiting for socket connection...")),
+                  );
+                  return;
+                }
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CallScreen(
+                      selfId: myId,
+                      targetId: targetId,
+                    ),
+                  ),
+                );
+              },
+              child: const Text("Start Calling"),
             ),
           ],
         ),

@@ -238,7 +238,7 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       color: Colors.grey[200],
       width: double.infinity,
-      child: Text('$label: $value', style: const TextStyle(fontSize: 13)),
+      child: SelectableText('$label: $value', style: const TextStyle(fontSize: 13)),
     );
   }
 }
