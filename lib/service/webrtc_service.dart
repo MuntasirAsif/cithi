@@ -3,6 +3,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
+  final List<RTCIceCandidate> _remoteCandidateBuffer = [];
+  bool _remoteDescriptionSet = false;
+
 
   final Map<String, dynamic> _config = {
     'iceServers': [
@@ -38,8 +41,17 @@ class WebRTCService {
   }
 
   Future<void> setRemoteDescription(RTCSessionDescription desc) async {
+    print("🧠 Setting remote description: ${desc.type}");
     await _peerConnection?.setRemoteDescription(desc);
+    _remoteDescriptionSet = true;
+
+    // Now add buffered candidates
+    for (var candidate in _remoteCandidateBuffer) {
+      _peerConnection?.addCandidate(candidate);
+    }
+    _remoteCandidateBuffer.clear();
   }
+
 
   void addIceCandidate(RTCIceCandidate candidate) {
     _peerConnection?.addCandidate(candidate);

@@ -9,7 +9,7 @@ class SocketService {
     try {
       debugPrint('Connecting.........');
       socket = io.io(
-        'https://9461-137-59-180-113.ngrok-free.app/',
+        'https://1028-137-59-180-113.ngrok-free.app/',
         io.OptionBuilder()
             .setTransports(['websocket'])
             .enableReconnection()
@@ -70,18 +70,16 @@ class SocketService {
   /// WebRTC Signaling Methods
 
   void sendOffer(String targetId, Map<String, dynamic> offer) {
-    socket.emit('offer', {"targetId": targetId, "offer": offer});
+    socket.emit('offer', {
+      "targetId": targetId,
+      "offer": offer,
+      "from": mySocketId,
+    });
   }
+
 
   void sendAnswer(String targetId, Map<String, dynamic> answer) {
     socket.emit('answer', {"targetId": targetId, "answer": answer});
-  }
-
-  void sendIceCandidate(String targetId, Map<String, dynamic> candidate) {
-    socket.emit('ice-candidate', {
-      "targetId": targetId,
-      "candidate": candidate,
-    });
   }
 
   void onOffer(Function(Map<String, dynamic>) handler) {
@@ -98,4 +96,11 @@ class SocketService {
       (data) => handler(Map<String, dynamic>.from(data)),
     );
   }
+  void sendIceCandidate(String targetId, Map<String, dynamic> candidate) {
+    socket.emit('ice-candidate', {
+      "targetId": targetId,
+      ...candidate, // spread fields directly
+    });
+  }
+
 }

@@ -8,7 +8,12 @@ class CallScreen extends StatefulWidget {
   final String targetId;
   final Map<String, dynamic>? incomingOffer;
 
-  const CallScreen({required this.selfId, required this.targetId, super.key, this.incomingOffer});
+  const CallScreen({
+    required this.selfId,
+    required this.targetId,
+    super.key,
+    this.incomingOffer,
+  });
 
   @override
   State<CallScreen> createState() => _CallScreenState();
@@ -41,46 +46,73 @@ class _CallScreenState extends State<CallScreen> {
 
     _localRenderer.srcObject = _webrtcService.localStream;
 
+    // Emit ICE candidates
     _webrtcService.onIceCandidate((candidate) {
-      _signalingService.sendIceCandidate(widget.targetId, {
-        'candidate': candidate.toMap(),
-      });
-
+      print("📤 Local ICE candidate: ${candidate.toMap()}");
+      _signalingService.sendIceCandidate(widget.targetId, candidate.toMap());
     });
 
+    // Receive remote stream
     _webrtcService.onTrack((stream) {
+      print("🎥 Received remote stream: ${stream.id}");
+      for (var track in stream.getTracks()) {
+        print("🔍 Track kind: ${track.kind}, enabled: ${track.enabled}");
+      }
       setState(() {
         _remoteRenderer.srcObject = stream;
       });
     });
 
+    // Handle incoming answer
     _signalingService.onAnswer((data) async {
-      var answer = RTCSessionDescription(data['answer']['sdp'], data['answer']['type']);
+      print("📥 Received answer: $data");
+      final answer = RTCSessionDescription(
+        data['answer']['sdp'],
+        data['answer']['type'],
+      );
       await _webrtcService.setRemoteDescription(answer);
     });
 
+    // Handle incoming ICE candidates
     _signalingService.onIceCandidate((data) {
-      var candidate = RTCIceCandidate(
-        data['candidate']['candidate'],
-        data['candidate']['sdpMid'],
-        data['candidate']['sdpMLineIndex'],
+      print("📥 Received ICE candidate: $data");
+      final candidate = RTCIceCandidate(
+        data['candidate'],
+        data['sdpMid'],
+        data['sdpMLineIndex'],
       );
       _webrtcService.addIceCandidate(candidate);
     });
 
+    // 📞 Handle incoming offer from socket (auto-answer)
+    _signalingService.onOffer((data) async {
+      print("📥 Incoming offer from ${data['from']}");
+      final offer = RTCSessionDescription(
+        data['offer']['sdp'],
+        data['offer']['type'],
+      );
+      await _webrtcService.setRemoteDescription(offer);
+      final answer = await _webrtcService.createAnswer();
+      _signalingService.sendAnswer(data['from'], {
+        'sdp': answer.sdp,
+        'type': answer.type,
+      });
+    });
+
+    // Initiate call if we're the caller
     if (widget.incomingOffer != null) {
-      var offer = RTCSessionDescription(
+      final offer = RTCSessionDescription(
         widget.incomingOffer!['sdp'],
         widget.incomingOffer!['type'],
       );
       await _webrtcService.setRemoteDescription(offer);
-      var answer = await _webrtcService.createAnswer();
+      final answer = await _webrtcService.createAnswer();
       _signalingService.sendAnswer(widget.targetId, {
         'sdp': answer.sdp,
         'type': answer.type,
       });
     } else {
-      var offer = await _webrtcService.createOffer();
+      final offer = await _webrtcService.createOffer();
       _signalingService.sendOffer(widget.targetId, {
         'sdp': offer.sdp,
         'type': offer.type,
@@ -168,4 +200,3 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 }
-
